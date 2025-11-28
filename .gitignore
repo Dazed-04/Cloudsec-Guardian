@@ -1,0 +1,35 @@
+# Python virtual environment
+venv/
+
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Aws credentials 
+.aws/
+*.pem
+
+# Local environment files
+.env
+
+# Docker artifacts
+*.log
+
+# Temporary files
+*.swp
+*.swo
+*~
+.netrwhist
+Session.vim
+
+# Plugin/Temp directories
+pack/
+tmp/
+undo/
+view/
+shada/
+
+# Os-specific
+.DS_Store
