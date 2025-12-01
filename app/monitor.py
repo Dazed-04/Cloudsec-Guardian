@@ -1,4 +1,5 @@
 import boto3
+import time
 import logging
 from datetime import datetime, timedelta, UTC
 import json
@@ -96,8 +97,19 @@ def detect_threats(events):
 
     print(f"Total alerts this scan: {total_alerts}")
 
+def run_monitor_loop(interval=60):
+    print(f"Monitoring started - checking every {interval}s.")
+
+    try:
+        while true:
+            events = get_cloudtrail_events()
+            detect_threats(events)
+            time.sleep(interval)
+
+    except KeyboardInterrupt:
+        print("\nStopped monitoring.")
+        logging.warning("Monitoring loop stopped by user.")
+
 
 if __name__ == "__main__":
-    events = get_cloudtrail_events()
-    detect_threats(events)
-  
+    run_monitor_loop(interval=60)
