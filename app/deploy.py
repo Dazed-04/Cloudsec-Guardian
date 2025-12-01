@@ -100,8 +100,8 @@ def create_ec2_instance():
     print("Launching EC2 instance...")
 
     instance = ec2.run_instances(
-        ImageId="ami-0c02fb55956c7d316", # Amazon Linux 2 AMI in us-east-1
-        InstanceType="t2.micro",
+        ImageId="ami-0156001f0548e90b1", # Amazon Linux 2 AMI in us-east-1
+        InstanceType="t3.micro",
         MinCount=1,
         MaxCount=1,
         SecurityGroupIds=[sg_id],
