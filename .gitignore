@@ -33,3 +33,8 @@ shada/
 
 # Os-specific
 .DS_Store
+
+# Runtine artifacts
+last_run.txt
+bucket-policy.json
+alerts.log
