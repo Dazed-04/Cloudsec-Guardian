@@ -101,7 +101,7 @@ def run_monitor_loop(interval=60):
     print(f"Monitoring started - checking every {interval}s.")
 
     try:
-        while true:
+        while True:
             events = get_cloudtrail_events()
             detect_threats(events)
             time.sleep(interval)
