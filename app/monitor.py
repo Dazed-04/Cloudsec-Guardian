@@ -35,7 +35,7 @@ SUSPICIOUS_EVENTS = {
 }
 
 def load_last_run():
-    # 1️⃣ Check alert logs first
+    # Check alert logs first
     if os.path.exists("alerts.log"):
         with open("alerts.log", "r") as f:
             lines = f.readlines()
@@ -46,7 +46,7 @@ def load_last_run():
                 except Exception:
                     continue
 
-    # 2️⃣ Fallback to last_run file
+    #  Fallback to last_run file
     if os.path.exists(LAST_RUN_FILE):
         with open(LAST_RUN_FILE, "r") as f:
             try:
@@ -54,7 +54,7 @@ def load_last_run():
             except Exception:
                 pass
 
-    # 3️⃣ First execution fallback
+    # First execution fallback
     return datetime.now(UTC) - timedelta(hours=3)
 
 def save_last_run(events):
