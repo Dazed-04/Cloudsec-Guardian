@@ -17,38 +17,66 @@ LAST_RUN_FILE = "last_run.txt"
 
 # Threat rules with severity scoring
 SUSPICIOUS_EVENTS = {
+    # Authentication security
     "ConsoleLogin": ("Unauthorized login attempt", 3),
+
+    # S3 risks
     "PutBucketAcl": ("Possible S3 public access risk", 2),
     "PutBucketPolicy": ("Possible S3 public access risk", 2),
+
+    # EC2 lifecycle
     "TerminateInstances": ("EC2 instance termination attempt", 4),
-    "RevokeSecurityGroupIngress": ("Security group modification", 3),
+    "StopInstances": ("EC2 instance stopped", 2),
+    "StartInstances": ("EC2 instance started", 1),
+
+    # Security Group modifications
+    "AuthorizeSecurityGroupIngress": ("Ingress rule added — potential exposure", 3),
+    "RevokeSecurityGroupIngress": ("Ingress rule removed", 2),
 }
 
-
 def load_last_run():
-    """Get last processed timestamp to avoid duplicate alerts."""
+    # 1️⃣ Check alert logs first
+    if os.path.exists("alerts.log"):
+        with open("alerts.log", "r") as f:
+            lines = f.readlines()
+            for line in reversed(lines):
+                try:
+                    ts = line.split(" - ")[0]  # timestamp prefix
+                    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                except Exception:
+                    continue
+
+    # 2️⃣ Fallback to last_run file
     if os.path.exists(LAST_RUN_FILE):
         with open(LAST_RUN_FILE, "r") as f:
-            ts = f.read().strip()
             try:
-                return datetime.fromisoformat(ts)
-            except ValueError:
+                return datetime.fromisoformat(f.read().strip())
+            except Exception:
                 pass
 
-    return datetime.now(UTC) - timedelta(hours=1)
+    # 3️⃣ First execution fallback
+    return datetime.now(UTC) - timedelta(hours=3)
 
-
-def save_last_run(time_value):
-    """Save timestamp of latest processed event."""
-    with open(LAST_RUN_FILE, "w") as f:
-        f.write(time_value.isoformat())
-
+def save_last_run(events):
+    if events:
+        latest_ts = max(e["EventTime"] for e in events)
+        with open(LAST_RUN_FILE, "w") as f:
+            f.write(latest_ts.isoformat())
 
 def get_cloudtrail_events():
     cloudtrail = boto3.client("cloudtrail")
 
     last_run = load_last_run()
+
+    # Ensure timezone-aware UTC timestamp
+    if last_run.tzinfo is None:
+        last_run = last_run.replace(tzinfo=UTC)
+
     now = datetime.now(UTC)
+
+    # Fix future timestamps caused by CloudTrail clock skew
+    if last_run >= now:
+        last_run = now - timedelta(minutes=5)
 
     response = cloudtrail.lookup_events(
         StartTime=last_run,
@@ -57,7 +85,8 @@ def get_cloudtrail_events():
     )
 
     events = response.get("Events", [])
-    save_last_run(now)
+    save_last_run(events)  # Use latest event timestamps
+
     return events
 
 

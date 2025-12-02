@@ -1,9 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 import uuid
-from mypy_boto3_ec2.type_defs import TagSpecificationOutputTypeDef
 import requests
-from urllib3 import response
 
 def create_s3_bucket():
     s3 = boto3.client("s3")
@@ -13,16 +11,17 @@ def create_s3_bucket():
 
     try:
         print(f"Creating private bucket: {bucket_name}")
-        
+
+        # us-east-1 requires no LocationConstraint
         if region == "us-east-1":
             s3.create_bucket(Bucket=bucket_name)
         else:
             s3.create_bucket(
-            Bucket=bucket_name,
-            CreateBucketConfiguration={"LocationConstraint": region},
-        )
-        
-        # Block Pulic Access
+                Bucket=bucket_name,
+                CreateBucketConfiguration={"LocationConstraint": region},
+            )
+
+        # Block all public access
         s3.put_public_access_block(
             Bucket=bucket_name,
             PublicAccessBlockConfiguration={
@@ -32,8 +31,8 @@ def create_s3_bucket():
                 "RestrictPublicBuckets": True,
             },
         )
-        
-        # Enable Server-Side Encryption
+
+        # Enable encryption
         s3.put_bucket_encryption(
             Bucket=bucket_name,
             ServerSideEncryptionConfiguration={
@@ -54,25 +53,42 @@ def create_s3_bucket():
         print("Error:", err)
         return None
 
+
+def existing_instance():
+    """Return an already running or pending instance ID if exists."""
+    ec2 = boto3.client("ec2")
+    response = ec2.describe_instances(
+        Filters=[{"Name": "instance-state-name", "Values": ["pending", "running"]}]
+    )
+
+    for reservation in response["Reservations"]:
+        for instance in reservation["Instances"]:
+            return instance["InstanceId"]
+    return None
+
+
 def create_ec2_instance():
     ec2 = boto3.client("ec2")
-    my_ip = requests.get("https://checkip.amazonaws.com").text.strip()
 
+    # Check first if instance already exists
+    instance_id = existing_instance()
+    if instance_id:
+        print(f"Existing instance detected: {instance_id}")
+        return instance_id
+
+    my_ip = requests.get("https://checkip.amazonaws.com").text.strip()
     print(f"My IP detected: {my_ip}")
 
-    # Create a security group with SSH only from current IP
     sg_name = "cloudsec-ssh-only"
     sg_desc = "Allow SSH only from my current public IP"
 
     try:
-        # Create SG
         response = ec2.create_security_group(
             GroupName=sg_name,
             Description=sg_desc,
         )
         sg_id = response["GroupId"]
-        
-        # Add ingress rule
+
         ec2.authorize_security_group_ingress(
             GroupId=sg_id,
             IpPermissions=[
@@ -84,7 +100,7 @@ def create_ec2_instance():
                 }
             ],
         )
-        
+
         print(f"Security Group created: {sg_id}")
 
     except ClientError as err:
@@ -96,11 +112,10 @@ def create_ec2_instance():
             print(err)
             return None
 
-    # Launch EC2 instance
     print("Launching EC2 instance...")
 
     instance = ec2.run_instances(
-        ImageId="ami-0156001f0548e90b1", # Amazon Linux 2 AMI in us-east-1
+        ImageId="ami-0156001f0548e90b1",
         InstanceType="t3.micro",
         MinCount=1,
         MaxCount=1,
@@ -114,14 +129,14 @@ def create_ec2_instance():
     )["Instances"][0]
 
     instance_id = instance["InstanceId"]
-
     print(f"EC2 instance launched: {instance_id}")
     return instance_id
+
 
 if __name__ == "__main__":
     bucket = create_s3_bucket()
     print("Created bucket:", bucket)
-    
+
     instance_id = create_ec2_instance()
-    print("EC2 Instace ID:", instance_id)
+    print("EC2 Instance ID:", instance_id)
 
